@@ -16,62 +16,14 @@ Public Class ScanControl
     ' Once ran it will call the scanner and grab whatever document is loaded, then it will convert it to pdf and save it as the filename provided
     ' I have set the needed scanner contols up as application level variables in the ScanSettings class, these are read from an XML file and can
     ' therefore be changed by simply editing the file
-    Public Class ScanDocument
-        'Private SCAN_DOC_DIR As String
-        'Private SCAN_FILE_NAME As String
-        'Private SCAN_TYPE_CODE As String
-        'Private SCAN_USER As Integer
-        'Private SCAN_COMPANY As String
-        'Private SCAN_Full_File As String
-        'Public Property doc_dir() As String
-        '    Get
-        '        Return SCAN_DOC_DIR
-        '    End Get
-        '    Set(ByVal value As String)
-        '        SCAN_DOC_DIR = value
-        '    End Set
-        'End Property
-        'Public Property file_name() As String
-        '    Get
-        '        Return SCAN_FILE_NAME
-        '    End Get
-        '    Set(ByVal value As String)
-        '        SCAN_FILE_NAME = value
-        '    End Set
-        'End Property
-        'Public Property user() As Integer
-        '    Get
-        '        Return SCAN_USER
-        '    End Get
-        '    Set(ByVal value As Integer)
-        '        SCAN_USER = value
-        '    End Set
-        'End Property
-        'Public Property full_file() As String
-        '    Get
-        '        Return SCAN_Full_File
-        '    End Get
-        '    Set(ByVal value As String)
-        '        SCAN_Full_File = value
-        '    End Set
-        'End Property
+    '
+    ' Version 2.
+    ' Si - 04/18
+    ' Fixed it. Pretty much every single thing.
 
-        'Public Property type_code() As String
-        '    Get
-        '        Return SCAN_TYPE_CODE
-        '    End Get
-        '    Set(ByVal value As String)
-        '        SCAN_TYPE_CODE = value
-        '    End Set
-        'End Property
-        'Public Property Company() As String
-        '    Get
-        '        Return SCAN_COMPANY
-        '    End Get
-        '    Set(ByVal value As String)
-        '        SCAN_COMPANY = value
-        '    End Set
-        'End Property
+    Public Class ScanDocument
+
+#Region "Properties"
 
         Private SCAN_DATE As Integer
         Public Property doc_date() As Integer
@@ -113,12 +65,11 @@ Public Class ScanControl
             End Get
         End Property
 
+#End Region
+
+#Region "Constructor"
+
         Public Sub New(ByVal dir As String, ByVal name As String, ByVal proc As Char, ByVal bno As Integer)
-            'Company = S_Company
-            'doc_dir = dir
-            'file_name = name
-            'type_code = tcode
-            'user = usr
 
             processed = proc
             batch_no = bno
@@ -147,7 +98,11 @@ Public Class ScanControl
 
         End Sub
 
+#End Region
+
     End Class
+
+#Region "Shared Methods"
 
     Public Shared Function scannall(ByVal f As ScanDocument)
 
@@ -155,7 +110,7 @@ Public Class ScanControl
         Dim img As System.Drawing.Image
         Dim D As New UserSettings
 
-        Try            
+        Try
             Using tw As New DTI.ImageMan.Twain.TwainControl
                 With tw
                     .SelectScanner()
@@ -199,7 +154,7 @@ Public Class ScanControl
                         "Single", _
                         .OutputFile.Name, _
                         .batch_no, _
-                        D.ConStr _
+                        D _
                     )
 
                 End With
@@ -209,57 +164,61 @@ Public Class ScanControl
             Return True
 
         Catch ex As Exception
-            write_error(ex.Message, 1, D.ConStr)
+            write_error(ex.Message, 1, D)
             Return False
 
         End Try
 
     End Function
 
-    Public Shared Sub write_error(ByVal errmsg As String, ByVal usr As Integer, ByVal cn As String)
-        Using con As New SqlConnection
-            Dim cmd As New SqlCommand
-            With con
-                .ConnectionString = cn
+#Region "Logging"
 
-            End With
-            Dim sdate As DateTime
-            sdate = FormatDateTime("1/1/1988", DateFormat.ShortDate)
+    Public Shared Sub write_error(ByVal errmsg As String, ByVal usr As Integer, ByVal d As UserSettings)
+
+        Using con As SqlConnection = d.ConStr
             con.Open()
-            cmd.Connection = con
-            cmd.CommandText = "insert into ZEMG_ERRMSGLOG (LOGGEDBYPROCNAME,LOGGEDDATE,[MESSAGE],T$USER) values ( 'Scanner',@ddate,@message,@user)"
-            cmd.Parameters.AddWithValue("ddate", DateDiff(DateInterval.Minute, sdate, Now))
-            cmd.Parameters.AddWithValue("message", errmsg)
-            cmd.Parameters.AddWithValue("user", usr)
-            cmd.ExecuteNonQuery()
-        End Using
-    End Sub
-
-    Public Shared Sub write_log(ByVal DOC_DIR As String, ByVal File_Name As String, ByVal S_Date As Integer, ByVal sc_ty_co As String, ByVal SDC As String, ByVal S_Batch_NO As Integer, ByVal cn As String)
-        Try
-            Using con As New SqlConnection
-                Dim cmd As New SqlCommand
-                With con
-                    .ConnectionString = cn 'GetConnectionString("PriorityDB")
+            Using cmd As New SqlCommand
+                With cmd
+                    .Connection = con
+                    .CommandText = "insert into ZEMG_ERRMSGLOG (LOGGEDBYPROCNAME,LOGGEDDATE,[MESSAGE],T$USER) values ( 'Scanner',@ddate,@message,@user)"
+                    .Parameters.AddWithValue("ddate", DateDiff(DateInterval.Minute, #1/1/1988#, Now))
+                    .Parameters.AddWithValue("message", errmsg)
+                    .Parameters.AddWithValue("user", usr)
+                    .ExecuteNonQuery()
                 End With
-                con.Open()
-                cmd.Connection = con
-                cmd.CommandText = "insert into ZEMG_SCANNINGLOG (SCAN_DOC_DIR,SCAN_FILE_NAME,SCAN_DATE,SCAN_PROCESSED,SCAN_TYPE_CODE,SCAN_DOC_CODE,SCAN_BATCH_NO) values ( @docdir,@filename ,@ddate,'N',@TYCODE,@SDCO,@batchno)"
 
-                cmd.Parameters.AddWithValue("ddate", S_Date)
-                cmd.Parameters.AddWithValue("docdir", DOC_DIR)
-                cmd.Parameters.AddWithValue("filename", File_Name)
-                cmd.Parameters.AddWithValue("batchno", S_Batch_NO)
-                cmd.Parameters.AddWithValue("TYCODE", sc_ty_co)
-                cmd.Parameters.AddWithValue("SDCO", SDC)
-                cmd.ExecuteNonQuery()
             End Using
 
-        Catch ex As Exception
-            write_error(ex.ToString, 1, cn)
-            Console.WriteLine("Write Failed: " & ex.ToString)
-        End Try
+        End Using
 
     End Sub
+
+    Public Shared Sub write_log(ByVal DOC_DIR As String, ByVal File_Name As String, ByVal S_Date As Integer, ByVal sc_ty_co As String, ByVal SDC As String, ByVal S_Batch_NO As Integer, ByVal d As UserSettings)
+
+        Using con As SqlConnection = d.ConStr
+            con.Open()
+            Using cmd As New SqlCommand
+                With cmd
+                    .Connection = con
+                    .CommandText = "insert into ZEMG_SCANNINGLOG (SCAN_DOC_DIR,SCAN_FILE_NAME,SCAN_DATE,SCAN_PROCESSED,SCAN_TYPE_CODE,SCAN_DOC_CODE,SCAN_BATCH_NO) values ( @docdir,@filename ,@ddate,'N',@TYCODE,@SDCO,@batchno)"
+                    .Parameters.AddWithValue("ddate", S_Date)
+                    .Parameters.AddWithValue("docdir", DOC_DIR)
+                    .Parameters.AddWithValue("filename", File_Name)
+                    .Parameters.AddWithValue("batchno", S_Batch_NO)
+                    .Parameters.AddWithValue("TYCODE", sc_ty_co)
+                    .Parameters.AddWithValue("SDCO", SDC)
+                    .ExecuteNonQuery()
+
+                End With
+
+            End Using
+
+        End Using
+
+    End Sub
+
+#End Region
+
+#End Region
 
 End Class

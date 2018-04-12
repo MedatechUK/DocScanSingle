@@ -100,9 +100,17 @@ Public Class UserSettings
         End Set
     End Property
 
-    Public ReadOnly Property ConStr() As String
+    Public ReadOnly Property ConStr() As SqlConnection
         Get
-            Return String.Format("Data Source={0} ;Uid={1};Pwd={2};Initial Catalog={3}", DBServ, DBUname, DBPassword, DBName)
+            Return New SqlConnection( _
+                String.Format( _
+                    "Data Source={0} ;Uid={1};Pwd={2};Initial Catalog={3}", _
+                    DBServ, _
+                    DBUname, _
+                    DBPassword, _
+                    DBName _
+                ) _
+            )
         End Get
     End Property
 
@@ -220,8 +228,7 @@ Public Class UserSettings
     Private Sub ComboBox1_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles selectDBServ.SelectedIndexChanged
         If filling = True Then Exit Sub
         Dim listDataBases As List(Of String) = New List(Of String)
-        Dim connectString As String
-        Dim selectSQL As String
+        Dim connectString As String        
         Dim server As String
         ' Check if user was selected a server to connect
         selectDBName.DataSource = Nothing
@@ -249,15 +256,15 @@ Public Class UserSettings
             ' Open connection
             Try
                 con.Open()
-                'Get databases names in server in a datareader
-                selectSQL = "select name from sys.databases;"
-                Dim com As SqlCommand = New SqlCommand(selectSQL, con)
+                'Get databases names in server in a datareader                
+                Dim com As SqlCommand = New SqlCommand("select name from sys.databases;", con)
                 Dim dr As SqlDataReader = com.ExecuteReader()
                 While (dr.Read())
                     listDataBases.Add(dr(0).ToString())
                 End While
                 'Set databases list as combobox’s datasource 
                 selectDBName.DataSource = listDataBases
+
             Catch ex As Exception
                 MsgBox("These settings generated an error, please check and try again")
             End Try
@@ -299,7 +306,7 @@ Public Class UserSettings
         Else
             connectstring = "Data Source=" & selectDBServ.Text & " ;Uid=" & txtDBUname.Text & ";Pwd=" & txtDBPassword.Text & ";Initial Catalog=" & selectDBName.Text
         End If
-        Dim selectSQL As String
+
         Using con As New SqlConnection(connectstring)
             ' Open connection
             Try
